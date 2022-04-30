@@ -204,6 +204,7 @@ class SceneData
     void RemoveLonelyPoints(int n, float dis);
 
 
+    // 这里是计算...?
     // Searches the 4 closest neighbours and stores the distance of the furthest neighbour
     // in data[0]
     void ComputeRadius(int n = 4);

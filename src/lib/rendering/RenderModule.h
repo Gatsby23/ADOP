@@ -25,5 +25,5 @@ class PointRenderModuleImpl : public torch::nn::Module
     std::shared_ptr<PointRendererCache> cache;
 };
 
-
+// 啥意思？这里是定义PointRender吗？
 TORCH_MODULE(PointRenderModule);

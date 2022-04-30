@@ -8,10 +8,12 @@
 
 #include "data/SceneData.h"
 
+// 预处理点云数据
 void PreprocessPointcloud(std::string scene_dir, int dup_factor)
 {
     auto scene = std::make_shared<SceneData>(scene_dir);
 
+    // 依据配置文件来复制点云数据
     scene->DuplicatePoints(dup_factor, 1);
     scene->ComputeRadius();
     scene->RemoveClosePoints(0.00005);

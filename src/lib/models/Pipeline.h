@@ -21,9 +21,13 @@ using namespace Saiga;
 
 struct LossResult
 {
+    // vgg?
     float loss_vgg   = 0;
+    // l1?
     float loss_l1    = 0;
+    // mse
     float loss_mse   = 0;
+    // PSNR是图像相关的
     float loss_psnr  = 0;
     float loss_ssim  = 0;
     float loss_lpips = 0;
@@ -90,6 +94,7 @@ struct LossResult
 
     void Print()
     {
+        // 这里几个参数的定义得详细阐明下
         console << "Param " << loss_float_param << " VGG " << loss_vgg << " L1 " << loss_l1 << " MSE " << loss_mse
                 << " PSNR " << loss_psnr << " SSIM " << loss_ssim << " LPIPS " << loss_lpips << " count " << count
                 << std::endl;
@@ -108,7 +113,9 @@ struct ForwardResult
     LossResult float_loss;
 };
 
+// 多个Scale UNet
 using RenderNetwork       = MultiScaleUnet2d;
+// Scale Unet定义参数
 using RenderNetworkParams = MultiScaleUnet2dParams;
 
 
@@ -117,6 +124,7 @@ class NeuralPipeline
    public:
     NeuralPipeline(std::shared_ptr<CombinedParams> params);
 
+    //开启训练
     void Train(bool train);
 
     void SaveCheckpoint(const std::string& dir) { torch::save(render_network, dir + "/render_net.pth"); }
@@ -134,6 +142,7 @@ class NeuralPipeline
     void OptimizerStep(int epoch_id);
     void UpdateLearningRate(double factor);
 
+    // 前向传播->渲染得到结果
     ForwardResult Forward(NeuralScene& scene, std::vector<NeuralTrainData>& batch, torch::Tensor global_mask,
                           bool loss_statistics, bool keep_image = false,
                           float fixed_exposure     = std::numeric_limits<float>::infinity(),
@@ -146,9 +155,11 @@ class NeuralPipeline
     std::shared_ptr<CombinedParams> params;
     CUDA::CudaTimerSystem* timer_system = nullptr;
 
+    // 这个优化器
     std::shared_ptr<torch::optim::Optimizer> render_optimizer;
 
-    // Loss stuff
+    // Loss stuff 
+    // 这里的LOSS是VGG, pretrained得到的
     PretrainedVGG19Loss loss_vgg = nullptr;
     PSNR loss_psnr               = PSNR(0, 1);
     SSIM loss_ssim               = SSIM(2, 1);

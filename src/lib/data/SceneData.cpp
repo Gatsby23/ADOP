@@ -441,6 +441,7 @@ Saiga::UnifiedMesh SceneData::OutlierPointCloud(int n, float distance)
 void SceneData::ComputeRadius(int n)
 {
     point_cloud.data.resize(point_cloud.NumVertices(), vec4::Zero());
+    // 创建点云树
     KDTree<3, vec3> tree;
 
     {

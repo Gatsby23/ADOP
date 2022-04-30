@@ -55,7 +55,7 @@ NeuralPipeline::NeuralPipeline(std::shared_ptr<CombinedParams> _params) : params
     }
 }
 
-
+// 这里开始前向传播，进行渲染
 ForwardResult NeuralPipeline::Forward(NeuralScene& scene, std::vector<NeuralTrainData>& batch,
                                       torch::Tensor global_mask, bool loss_statistics, bool keep_image,
                                       float fixed_exposure, vec3 fixed_white_balance)
@@ -405,10 +405,14 @@ void NeuralPipeline::UpdateLearningRate(double factor)
     }
 }
 
+// 开启训练
 void NeuralPipeline::Train(bool train)
 {
+    // 
     render_module = nullptr;
     c10::cuda::CUDACachingAllocator::emptyCache();
+    // 渲染模式（点渲染）
+    // 定义在RenderModule.h中，但不清楚一些libtorch定义问题
     render_module = PointRenderModule(params);
 
     if (render_optimizer)
@@ -416,6 +420,7 @@ void NeuralPipeline::Train(bool train)
         render_optimizer->zero_grad();
     }
 
+    // 表示开启训练
     render_module->train(train);
     if (params->optimizer_params.fix_render_network)
     {

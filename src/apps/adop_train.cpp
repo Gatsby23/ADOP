@@ -300,27 +300,38 @@ class TrainScene
 
 ImGui::IMConsole console_error;
 
+/************************************
+ * NeuralTrainer训练器
+ ***********************************/
 class NeuralTrainer
 {
    public:
+    // 表明这里用的是GPU设备
     torch::DeviceType device = torch::kCUDA;
+    // 这个是渲染的整体流程（整体论文的流程）
     std::shared_ptr<NeuralPipeline> pipeline;
 
     torch::Tensor train_crop_mask;
+    // 创建训练指针
     std::shared_ptr<TrainScene> train_scenes;
     std::string ep_dir;
     LRSchedulerPlateau lr_scheduler;
 
+    // 这里tensorBoard是LOG记录器
     std::shared_ptr<TensorBoardLogger> tblogger;
 
     ~NeuralTrainer() {}
 
     NeuralTrainer()
     {
+        // 学习率变化设置
         lr_scheduler =
             LRSchedulerPlateau(params->train_params.lr_decay_factor, params->train_params.lr_decay_patience, true);
+
+        // 使用CPU多线程并行计算锁占用的计算数（感觉这里可以设置到16）
         torch::set_num_threads(1);
 
+        // 这里是每次训练开启的时候，创建一个文件夹来作为chpt.
         std::string experiment_name = Saiga::CurrentTimeString("%F_%H-%M-%S") + "_" + params->train_params.name;
         full_experiment_dir         = params->train_params.experiment_dir + "/" + experiment_name + "/";
         std::filesystem::create_directories(full_experiment_dir);
@@ -343,8 +354,10 @@ class NeuralTrainer
             std::ofstream strm(full_experiment_dir + "/git.txt");
             strm << GIT_SHA1 << std::endl;
         }
+        // 这里是训练的流程（和参数）
         pipeline = std::make_shared<NeuralPipeline>(params);
 
+        // 这里开始每次的epoch进行训练
         for (int epoch_id = 0; epoch_id <= params->train_params.num_epochs; ++epoch_id)
         {
             std::cout << std::endl;
@@ -352,18 +365,22 @@ class NeuralTrainer
             std::string ep_str = Saiga::leadingZeroString(epoch_id, 4);
 
             bool last_ep         = epoch_id == params->train_params.num_epochs;
+            // 是不是需要保存checkpoint
             bool save_checkpoint = epoch_id % params->train_params.save_checkpoints_its == 0 || last_ep;
 
             ep_dir = full_experiment_dir + "ep" + ep_str + "/";
+            // 这里是保存下来的checkpoint的位置
             if (save_checkpoint)
             {
                 std::filesystem::create_directory(ep_dir);
             }
 
             {
+                // 判断现在进行的训练条件
                 if (params->train_params.do_train && epoch_id > 0)
                 {
                     auto epoch_loss = TrainEpoch(epoch_id, train_scenes->train_cropped_samplers, false, "Train");
+                    // 这里是将训练的中间结果给保存下来，用LOG的方式记录下来。
                     for (auto& sd : train_scenes->data)
                     {
                         tblogger->add_scalar("LossTrain/" + sd.scene->scene->scene_name, epoch_id,
@@ -372,6 +389,7 @@ class NeuralTrainer
                             full_experiment_dir + "loss_train_" + sd.scene->scene->scene_name + ".txt", epoch_id);
                     }
 
+                    // 这里需要再看下，最后是不是要进一步优化
                     if (params->train_params.optimize_eval_camera)
                     {
                         TrainEpoch(epoch_id, train_scenes->test_cropped_samplers, true, "EvalRefine");
@@ -466,6 +484,7 @@ class NeuralTrainer
         int num_images             = 0;
         auto [loader, loader_size] = train_scenes->DataLoader(data, true);
 
+        // 开启训练
         pipeline->Train(epoch_id);
 
         {
@@ -664,10 +683,13 @@ int main(int argc, char* argv[])
 
 
     params->Check();
+    // 判断GPU设备是不是有
     console << "torch::cuda::cudnn_is_available() " << torch::cuda::cudnn_is_available() << std::endl;
+    // filesystem来创建文件夹（这里不知道是不是C++17的要求）
     std::filesystem::create_directories("experiments/");
 
     {
+        // 创建训练器
         NeuralTrainer trainer;
     }
 
