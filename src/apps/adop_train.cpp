@@ -246,6 +246,7 @@ class TrainScene
             n);
     }
 
+    // 这里应该是将数据上传到GPU上吧
     void Load(torch::DeviceType device, int scene)
     {
         if (scene == current_scene) return;
@@ -345,6 +346,7 @@ class NeuralTrainer
         std::cerr.rdbuf(console_error.rdbuf());
 
         tblogger     = std::make_shared<TensorBoardLogger>((full_experiment_dir + "/tfevents.pb").c_str());
+        // 训练场景
         train_scenes = std::make_shared<TrainScene>(params->train_params.scene_names);
 
         // Save all paramters into experiment output dir
@@ -484,13 +486,14 @@ class NeuralTrainer
         int num_images             = 0;
         auto [loader, loader_size] = train_scenes->DataLoader(data, true);
 
-        // 开启训练
+        // 开启训练，这里应该是开瓶器配置文件
         pipeline->Train(epoch_id);
 
         {
             Saiga::ProgressBar bar(
                 std::cout, name + " " + std::to_string(epoch_id) + " |",
                 loader_size * params->train_params.batch_size * params->train_params.inner_batch_size, 30, false, 5000);
+            // 创建Batch训练方式
             for (std::vector<NeuralTrainData>& batch : *loader)
             {
                 SAIGA_ASSERT(batch.size() == params->train_params.batch_size * params->train_params.inner_batch_size);
