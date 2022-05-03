@@ -59,12 +59,14 @@ class NeuralScene
 
    public:
     friend class NeuralPipeline;
+    // 这里的scene是存储所有的Environmental map
     std::shared_ptr<SceneData> scene;
 
     NeuralPointCloudCuda point_cloud_cuda         = nullptr;
     NeuralPointCloudCuda outlier_point_cloud_cuda = nullptr;
 
     NeuralPointTexture texture     = nullptr;
+    // 在这里得到Environment Map，环境数据，用来渲染
     EnvironmentMap environment_map = nullptr;
     NeuralCamera camera            = nullptr;
     PoseModule poses               = nullptr;

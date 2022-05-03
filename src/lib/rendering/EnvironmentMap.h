@@ -21,6 +21,7 @@ class EnvironmentMapImpl : public torch::nn::Module
 
     // Samples the env. map in all layers and all images of the batch.
     // The result is an array of tensor where each element resebles one layer of the stack.
+    // 这里是渲染过程，将Environment map向不同层图像进行投影渲染的过程
     std::vector<torch::Tensor> Sample(torch::Tensor poses, torch::Tensor intrinsics,
                                       ArrayView<ReducedImageInfo> info_batch, int num_layers);
 

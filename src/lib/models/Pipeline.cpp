@@ -65,6 +65,7 @@ ForwardResult NeuralPipeline::Forward(NeuralScene& scene, std::vector<NeuralTrai
 
     {
         SAIGA_OPTIONAL_TIME_MEASURE("Render", timer_system);
+        // 点向量渲染
         std::tie(neural_images, masks) = render_module->forward(scene, batch, timer_system);
         SAIGA_ASSERT(neural_images.size() == params->net_params.num_input_layers);
     }
@@ -94,62 +95,6 @@ ForwardResult NeuralPipeline::Forward(NeuralScene& scene, std::vector<NeuralTrai
             b->uv = b->uv.to(torch::kFloat16);
         }
     }
-
-
-
-#if 0
-    {
-        std::cout << "> torch forward" << std::endl;
-        std::vector<torch::Tensor> render_result = RenderPointCloud(*render_data);
-        for (auto i : render_result)
-        {
-            PrintTensorInfo(i);
-        }
-
-        std::cout << "> my forward" << std::endl;
-        std::vector<torch::Tensor> input2 = BlendPointCloud(render_data);
-        for (auto i : input2)
-        {
-            PrintTensorInfo(i);
-        }
-
-        std::cout << "> diff forward" << std::endl;
-        for (int i = 0; i < render_result.size(); ++i)
-        {
-            PrintTensorInfo(render_result[i] - input2[i]);
-            //            SAIGA_ASSERT((render_result[i] - input2[i]).sum().item().toFloat() == 0);
-        }
-
-        if (scene.texture->texture.requires_grad() && torch::GradMode::is_enabled())
-        {
-            std::cout << "> torch backward" << std::endl;
-            auto l1 = torch::zeros({1}, render_result.front().options());
-            for (auto& i : render_result) l1 += i.sum();
-            l1.backward();
-            auto grad1 = scene.texture->texture.grad().clone();
-            PrintTensorInfo(grad1);
-            PrintTensorInfo(grad1.slice(1, 0, 1));
-            PrintTensorInfo(grad1.slice(1, 1, 923745934857));
-            std::cout << grad1.slice(1, 0, 1) << std::endl;
-            scene.texture->texture.mutable_grad().zero_();
-
-            std::cout << "> my backward" << std::endl;
-            auto l2 = torch::zeros({1}, input2.front().options());
-            for (auto& i : input2) l2 += i.sum();
-            l2.backward();
-            auto grad2 = scene.texture->texture.grad().clone();
-            PrintTensorInfo(grad2);
-            PrintTensorInfo(grad2.slice(1, 0, 1));
-            PrintTensorInfo(grad2.slice(1, 1, 923745934857));
-            std::cout << grad2.slice(1, 0, 1) << std::endl;
-
-            std::cout << "> diff backward" << std::endl;
-            PrintTensorInfo(grad1 - grad2);
-            //            SAIGA_ASSERT((grad1 - grad2).sum().item().toFloat() == 0);
-        }
-        exit(0);
-    }
-#endif
 
 
     torch::Tensor local_mask;
@@ -201,6 +146,7 @@ ForwardResult NeuralPipeline::Forward(NeuralScene& scene, std::vector<NeuralTrai
     }
 
     torch::Tensor x;
+
     if (params->pipeline_params.skip_neural_render_network)
     {
         x = neural_images.front();
@@ -208,6 +154,7 @@ ForwardResult NeuralPipeline::Forward(NeuralScene& scene, std::vector<NeuralTrai
     }
     else
     {
+        // 这里是用U-Net网络
         SAIGA_OPTIONAL_TIME_MEASURE("Unet", timer_system);
         SAIGA_ASSERT(!neural_images.empty());
         SAIGA_ASSERT(neural_images.size() == params->net_params.num_input_layers);
@@ -380,7 +327,6 @@ ForwardResult NeuralPipeline::Forward(NeuralScene& scene, std::vector<NeuralTrai
         {
             fr.outputs.push_back(Saiga::TensorToImage<ucvec3>(x_full[i]));
             fr.targets.push_back(Saiga::TensorToImage<ucvec3>(full_target[i]));
-
             //            fr.outputs.push_back(Saiga::TensorToImage<ucvec3>(x[i]));
             //            fr.targets.push_back(Saiga::TensorToImage<ucvec3>(target[i]));
             fr.image_ids.push_back(frame_index[i].item().toLong());

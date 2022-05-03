@@ -49,6 +49,7 @@ struct PointRender : public Function<PointRender>
 
 // Render the scene into a batch of images
 // Every image is a pyramid of layers in different resolutions
+// 将场景渲染成多层
 std::vector<torch::Tensor> BlendPointCloud(NeuralRenderInfo* info);
 
 
@@ -93,6 +94,9 @@ struct LayerCuda
     torch::Tensor depth_index_tensor;
 };
 
+/*************************************************
+ * @brief 整体渲染流程
+ *************************************************/
 class PointRendererCache
 {
    public:

@@ -416,6 +416,8 @@ void SceneData::AddIntrinsicsNoise(float sdev_K, float sdev_dist)
         }
     }
 }
+// 唯一问题在这，不知道这里生成的到底是什么？
+// 判断应该是归一化，并且给点云添加上法向量信息
 Saiga::UnifiedMesh SceneData::OutlierPointCloud(int n, float distance)
 {
     n = std::min(n, point_cloud.NumVertices());

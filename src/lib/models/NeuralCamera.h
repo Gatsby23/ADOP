@@ -45,7 +45,7 @@ class VignetteNetImpl : public torch::nn::Module
     torch::Tensor vignette_params;
     torch::Tensor vignette_center;
 };
-
+// 这个是什么Net？
 TORCH_MODULE(VignetteNet);
 
 // This is just test.
@@ -67,6 +67,7 @@ class RollingShutterNetImpl : public torch::nn::Module
 
     torch::nn::functional::GridSampleFuncOptions options;
 };
+// 这个是Rolling Shutter的网络
 TORCH_MODULE(RollingShutterNet);
 
 // Also a test
@@ -92,6 +93,7 @@ class MotionblurNetImpl : public torch::nn::Module
 
     int padding;
 };
+// MotionBlurNet，但实际上好像没有用
 TORCH_MODULE(MotionblurNet);
 
 
@@ -114,7 +116,7 @@ class CameraResponseNetImpl : public torch::nn::Module
     torch::Tensor response;
     torch::Tensor leaky_value;
 };
-
+// 这个是相机相应
 TORCH_MODULE(CameraResponseNet);
 
 class NeuralCameraImpl : public torch::nn::Module
@@ -157,4 +159,5 @@ class NeuralCameraImpl : public torch::nn::Module
 
     void ApplyConstraints();
 };
+// Neural Camera
 TORCH_MODULE(NeuralCamera);

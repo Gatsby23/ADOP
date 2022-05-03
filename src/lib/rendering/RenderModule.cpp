@@ -7,9 +7,12 @@
 #include "RenderModule.h"
 
 #include <torch/torch.h>
+
+
 PointRenderModuleImpl::PointRenderModuleImpl(std::shared_ptr<CombinedParams> params)
     : params(params), num_layers(params->net_params.num_input_layers)
 {
+    // 这里的cache是在PointRender.h中定义，等于说整体的网络定义就是在这里.
     cache = std::make_shared<PointRendererCache>();
 }
 
@@ -37,6 +40,7 @@ std::pair<std::vector<torch::Tensor>, std::vector<torch::Tensor>> PointRenderMod
 
 std::pair<std::vector<torch::Tensor>, std::vector<torch::Tensor>> PointRenderModuleImpl::forward(NeuralRenderInfo* nri)
 {
+    // 这里应该调试的时候用到的，现在不需要
     if (0)
     {
         auto poses = nri->scene->poses->Download();
@@ -48,9 +52,13 @@ std::pair<std::vector<torch::Tensor>, std::vector<torch::Tensor>> PointRenderMod
         }
     }
 
+    /**************************************************
+     * 这里就是NeuralRenderInfo信息->等于说cache实例化成nri中的model信息
+     **************************************************/
     nri->cache = cache.get();
 
 
+    //这里是对图像尺度放大->应该是上采样
     if (params->render_params.super_sampling)
     {
         for (auto& i : nri->images)
@@ -60,11 +68,11 @@ std::pair<std::vector<torch::Tensor>, std::vector<torch::Tensor>> PointRenderMod
             i.crop_transform = i.crop_transform.scale(2);
         }
     }
-
+    // 这里的Blend不知道是做啥的
     auto combined_images_masks = BlendPointCloud(nri);
 
 
-
+    //这里才是具体的，nri当中的所有图像整合在一起才是渲染出来的图像
     std::vector<torch::Tensor> images(combined_images_masks.begin(), combined_images_masks.begin() + nri->num_layers);
     std::vector<torch::Tensor> point_masks;
 
@@ -83,6 +91,7 @@ std::pair<std::vector<torch::Tensor>, std::vector<torch::Tensor>> PointRenderMod
 
     if (params->render_params.super_sampling)
     {
+        // 这里论文有提，是将avg_pool来做上下采样中的像素填空？
         for (auto& img : images)
         {
             img = torch::avg_pool2d(img, {2, 2});
@@ -103,9 +112,11 @@ std::pair<std::vector<torch::Tensor>, std::vector<torch::Tensor>> PointRenderMod
 
 
 
+    // 这个是场景中构建scene中的environmental map数据结构
     if (nri->scene->environment_map)
     {
         SAIGA_ASSERT(params->render_params.output_background_mask);
+        // 感觉这里是渲染出图像？
         auto env_maps = nri->scene->environment_map->Sample(
             nri->scene->poses->poses_se3, nri->scene->intrinsics->intrinsics, nri->images, nri->num_layers);
 

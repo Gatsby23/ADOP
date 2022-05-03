@@ -71,31 +71,39 @@ __global__ void BuildSphericalUV(StaticDeviceTensor<double, 2> poses, StaticDevi
     vec2 ip(gx, gy);
 
 
-
+    // 这里就是Pose了
     Sophus::SE3f V = (((Sophus::SE3d*)(&poses(cam.image_index, 0)))[0]).cast<float>();
 
     float* ptr             = &intrinsics(cam.camera_index, 0);
+    // 这里是投影矩阵
     IntrinsicsPinholef K   = ((vec5*)ptr)[0];
+    // 这里是畸变矩阵
     Distortionf distortion = ((vec8*)(ptr + 5))[0];
 
-
+    // 点向图像平面投影
     vec2 dist_p = K.unproject2(cam.crop_transform.unproject2(ip));
+    // 畸变
     vec2 np     = undistortNormalizedPointSimple<float>(dist_p, distortion);
 
+    // 这里是像做齐次坐标了
     vec3 inp(np(0), np(1), 1);
 
+    // 这里像是投影？
     vec3 wp = V.inverse() * inp;
 
+    // 这里是相机方向
     vec3 dir = (wp - V.inverse().translation()).normalized();
 
     // CV -> opengl
     // dir(1) *= -1;
     // dir(2) *= -1;
 
+    // 构建球面坐标
     vec2 uv = SphericalCoordinates(dir);
 
     uv = uv * 2 - vec2(1, 1);
 
+    // 这里有点看不懂了
     uvs_out(gy, gx, 0) = uv[0];
     uvs_out(gy, gx, 1) = uv[1];
 
@@ -115,6 +123,7 @@ std::vector<torch::Tensor> EnvironmentMapImpl::Sample(torch::Tensor poses, torch
     float scale = 1;
     for (int i = 0; i < num_layers; ++i)
     {
+        // 这里uv应该是rendered的image，先放到GPU,CUDA上等待渲染
         uv[i] =
             torch::empty({num_batches, h, w, 2}, torch::TensorOptions().device(torch::kCUDA).dtype(torch::kFloat32));
         uv[i].uniform_(-1, 1);
@@ -129,6 +138,7 @@ std::vector<torch::Tensor> EnvironmentMapImpl::Sample(torch::Tensor poses, torch
             SAIGA_ASSERT(cam.camera_model_type == CameraModel::PINHOLE_DISTORTION);
 
             cam.crop_transform = cam.crop_transform.scale(scale);
+            // 是在这里->GPU、CUDA训练
             BuildSphericalUV<<<dim3(bx, by, 1), dim3(16, 16, 1)>>>(poses, intrinsics, uv[i][b], cam);
         }
 
