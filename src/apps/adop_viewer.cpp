@@ -16,6 +16,7 @@ ADOPViewer::ADOPViewer(std::string scene_dir, std::unique_ptr<DeferredRenderer> 
                        std::unique_ptr<WindowType> window_)
     : StandaloneWindow<wm, DeferredRenderer>(std::move(renderer_), std::move(window_))
 {
+    // 有四种模式，四个窗口展示
     main_menu.AddItem(
         "Saiga", "MODEL", [this]() { view_mode = ViewMode::MODEL; }, GLFW_KEY_F1, "F1");
 
@@ -30,7 +31,9 @@ ADOPViewer::ADOPViewer(std::string scene_dir, std::unique_ptr<DeferredRenderer> 
     std::cout << "Program Initialized!" << std::endl;
 
     std::cout << "Loading Scene " << scene_dir << std::endl;
+    // 加载场景
     LoadScene(scene_dir);
+    // 场景实现
     LoadSceneImpl();
 
     std::filesystem::create_directories("videos/");
@@ -51,8 +54,10 @@ void ADOPViewer::LoadSceneImpl()
     renderer->lighting.spotLights.clear();
 
     ::camera = &scene->scene_camera;
+    // 设置相机
     window->setCamera(camera);
 
+    // 不会渲染出来过大的场景
     if (scene->scene->point_cloud.NumVertices() > 15000000)
     {
         // by default don't render very large point clouds in the viewport
@@ -70,6 +75,7 @@ void ADOPViewer::LoadSceneImpl()
     renderer->tone_mapper.params.exposure_value = scene->scene->dataset_params.scene_exposure_value;
 }
 
+// 渲染结果
 void ADOPViewer::render(RenderInfo render_info)
 {
     if (renderObject && render_info.render_pass == RenderPass::Deferred)
@@ -88,6 +94,7 @@ void ADOPViewer::render(RenderInfo render_info)
             {
                 if (!object_col)
                 {
+                    // 渲染颜色
                     scene->model.ComputeColor();
                     auto mesh = scene->model.CombinedMesh(VERTEX_POSITION | VERTEX_NORMAL | VERTEX_COLOR).first;
                     mesh.RemoveDoubles(0.001);
@@ -589,13 +596,20 @@ void ADOPViewer::Recording(ImageInfo& fd)
 
 int main(int argc, char* argv[])
 {
+    // 不知道GIT_SHA是啥
     std::cout << "Git ref: " << GIT_SHA1 << std::endl;
 
+    // 渲染尺度->这里表示的是渲染的是默认尺度
     float render_scale = 1.0f;
+    // 场景数据
     std::string scene_dir;
+    // 初始化
     CLI::App app{"ADOP Viewer for Scenes", "adop_viewer"};
+    // 加载场景地图
     app.add_option("--scene_dir", scene_dir)->required();
+    // 渲染尺度
     app.add_option("--render_scale", render_scale);
+    // 加载配置，生成app
     CLI11_PARSE(app, argc, argv);
 
 
@@ -607,13 +621,17 @@ int main(int argc, char* argv[])
     DeferredRenderingParameters rendererParameters;
     windowParameters.fromConfigFile("config.ini");
     rendererParameters.hdr = true;
-
+    // 生成Window
     auto window   = std::make_unique<WindowType>(windowParameters, openglParameters);
+    // 渲染功能生成
     auto renderer = std::make_unique<DeferredRenderer>(*window, rendererParameters);
 
-
+    // 这里循环参数
     MainLoopParameters mlp;
+    // 生成视角
     ADOPViewer viewer(scene_dir, std::move(renderer), std::move(window));
+    // 设置render scale.
     viewer.render_scale = render_scale;
+    // 这里的接口没有找到
     viewer.run(mlp);
 }

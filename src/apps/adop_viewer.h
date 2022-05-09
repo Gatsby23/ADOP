@@ -115,6 +115,7 @@ class ADOPViewer : public StandaloneWindow<wm, DeferredRenderer>,
 
    private:
     std::shared_ptr<LineVertexColoredAsset> spline_mesh;
+    // 相机位置用spline插值生成
     SplinePath camera_spline;
 
     ViewMode view_mode;

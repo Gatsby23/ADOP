@@ -11,6 +11,7 @@ NeuralScene::NeuralScene(std::shared_ptr<SceneData> scene, std::shared_ptr<Combi
 {
     params->Check();
 
+    // 如果相机模型是小孔畸变模型
     if (scene->dataset_params.camera_model == CameraModel::PINHOLE_DISTORTION)
     {
         params->render_params.dist_cutoff = scene->scene_cameras.front().distortion.MonotonicThreshold();
@@ -20,32 +21,40 @@ NeuralScene::NeuralScene(std::shared_ptr<SceneData> scene, std::shared_ptr<Combi
         params->render_params.dist_cutoff = scene->scene_cameras.front().ocam_cutoff;
     }
 
+    // 判断有没有场景数据
     SAIGA_ASSERT(scene);
 
     // ========== Create Modules ==========
-
+    // 有场景数据的时候，将场景当中的Point Clou变成具有Neural Feature的PointCloud
     point_cloud_cuda = NeuralPointCloudCuda(scene->point_cloud);
+    // 判断数据是不是有法向量
     SAIGA_ASSERT(point_cloud_cuda->t_normal.defined() || !params->render_params.check_normal);
 
-
+    // 曝光参数
     std::vector<float> exposures;
     for (auto& f : scene->frames) exposures.push_back(f.exposure_value - scene->dataset_params.scene_exposure_value);
 
+    // 白平衡参数
     std::vector<vec3> wbs;
     for (auto& f : scene->frames) wbs.push_back(f.white_balance);
 
+    // Pose模块
     poses      = PoseModule(scene);
+    // 内参模块
     intrinsics = IntrinsicsModule(scene);
     camera = NeuralCamera(ivec2(scene->scene_cameras.front().w, scene->scene_cameras.front().h), params->camera_params,
                           scene->frames.size(), exposures, wbs);
 
     if (params->pipeline_params.enable_environment_map)
     {
+        // 创建Environment Map
         environment_map = EnvironmentMap(params->pipeline_params.env_map_channels, params->pipeline_params.env_map_w,
                                          params->pipeline_params.env_map_h, params->pipeline_params.log_texture);
     }
 
     SAIGA_ASSERT(scene->point_cloud.NumVertices() > 0);
+    // 使用场景中的颜色作为初始参数（看来点云不一定要带颜色）
+    // 这里默认是False，不知道为什么打开还是错
     if (params->train_params.texture_color_init)
     {
         std::cout << "Using point color as texture" << std::endl;
@@ -53,13 +62,16 @@ NeuralScene::NeuralScene(std::shared_ptr<SceneData> scene, std::shared_ptr<Combi
     }
     else
     {
+        // 这里打开之后默认点云的格式是三维，不知道是为什么
         texture = NeuralPointTexture(params->pipeline_params.num_texture_channels, scene->point_cloud.NumVertices(),
                                      params->train_params.texture_random_init, params->pipeline_params.log_texture);
     }
 
+    // 加载之前训练数据
     LoadCheckpoint(params->train_params.checkpoint_directory);
 
     camera->eval();
+    // 将相机送到CUDA上
     camera->to(device);
 
     if (params->net_params.half_float)
@@ -72,8 +84,9 @@ NeuralScene::NeuralScene(std::shared_ptr<SceneData> scene, std::shared_ptr<Combi
     // ========== Create Optimizers ==========
 
     {
+        // 创建优化器
         std::vector<torch::optim::OptimizerParamGroup> g;
-
+        // ADAM优化
         if (params->optimizer_params.texture_optimizer == "adam")
         {
             using TexOpt   = torch::optim::AdamOptions;
@@ -391,6 +404,7 @@ void NeuralScene::Log(const std::string& log_dir)
         camera->vignette_net->PrintParams(log_dir, scene->scene_name);
     }
 }
+// 每一次训练
 void NeuralScene::OptimizerStep(int epoch_id, bool structure_only)
 {
     if (!structure_only && texture_optimizer)
@@ -440,6 +454,7 @@ void NeuralScene::Train(int epoch_id, bool train)
     if (structure_optimizer) structure_optimizer->zero_grad();
 }
 
+// 训练不同epoch后，将learning rate进行调整
 void NeuralScene::UpdateLearningRate(int epoch_id, double factor)
 {
     SAIGA_ASSERT(factor > 0);
@@ -482,6 +497,7 @@ void NeuralScene::UpdateLearningRate(int epoch_id, double factor)
     }
 }
 
+// 这里下载内参不知道是什么
 void NeuralScene::DownloadIntrinsics()
 {
     if (scene->dataset_params.camera_model == CameraModel::PINHOLE_DISTORTION)
@@ -508,6 +524,7 @@ void NeuralScene::DownloadIntrinsics()
 }
 void NeuralScene::DownloadPoses()
 {
+    // 不知道这里的poses download是什么
     auto new_poses = poses->Download();
 
     SAIGA_ASSERT(new_poses.size() == scene->frames.size());
