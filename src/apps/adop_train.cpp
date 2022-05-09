@@ -66,6 +66,7 @@ class TrainScene
    public:
     TrainScene(std::vector<std::string> scene_dirs)
     {
+        // 对场景数据来进行分析
         for (int i = 0; i < scene_dirs.size(); ++i)
         {
             auto scene = std::make_shared<SceneData>(params->train_params.scene_base_dir + scene_dirs[i]);
@@ -74,12 +75,13 @@ class TrainScene
             auto all_indices                   = scene->Indices();
             auto [train_indices, test_indices] = params->train_params.Split(all_indices);
 
+            // 训练数据
             if (std::filesystem::exists(params->train_params.split_index_file_train))
             {
                 train_indices = params->train_params.ReadIndexFile(params->train_params.split_index_file_train);
             }
 
-
+            // 测试数据
             if (std::filesystem::exists(params->train_params.split_index_file_test))
             {
                 test_indices = params->train_params.ReadIndexFile(params->train_params.split_index_file_test);
@@ -111,6 +113,7 @@ class TrainScene
                 }
             }
 
+            // 实际上有多少数据，就有多少训练数据和测试数据
             std::cout << "Train(" << train_indices.size() << "): " << array_to_string(train_indices, ' ') << std::endl;
             std::cout << "Test(" << test_indices.size() << "): " << array_to_string(test_indices, ' ') << std::endl;
 
@@ -270,6 +273,7 @@ class TrainScene
     void Train(int epoch, bool v)
     {
         SAIGA_ASSERT(current_scene != -1);
+        // 当前场景来进行训练
         data[current_scene].scene->Train(epoch, v);
     }
 
@@ -486,7 +490,7 @@ class NeuralTrainer
         int num_images             = 0;
         auto [loader, loader_size] = train_scenes->DataLoader(data, true);
 
-        // 开启训练，这里应该是开瓶器配置文件
+        // 开启训练，这里应该是训练的配置文件
         pipeline->Train(epoch_id);
 
         {
